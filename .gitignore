@@ -1,0 +1,6 @@
+compiler
+*.o
+*~
+tmp*
+a.out
+.vscode/
