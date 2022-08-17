@@ -2,13 +2,40 @@
 #include <stdlib.h>
 
 int main(int argc, char** argv){    
-    // intel記法はmovで右から左に代入
-    // レジスタに%はつけない
+    if (argc != 2){
+        fprintf(stderr, "usage: ./compiler code\n");
+        return 1;
+    }
+
+    char* cur = argv[1];
 
     printf(".intel_syntax noprefix\n");
     printf(".globl main\n");
     printf("main:\n");
-    printf("\tmov rax, %d\n", atoi(argv[1])); // raxに返り値を入れる
+
+    int num = strtol(cur, &cur, 10);
+    // fprintf(stderr, "cur: %s\n", cur);
+    printf("\tmov rax, %d\n", num); // raxに返り値を入れる
+    
+    while(*cur){
+        if (*cur == '+'){
+            cur++;
+            num = strtol(cur, &cur, 10);
+            // fprintf(stderr, "cur: %s\n", cur);
+            printf("\tadd rax, %d\n", num);
+            continue;
+        } else if (*cur == '-'){
+            cur++;
+            num = strtol(cur, &cur, 10);
+            // fprintf(stderr, "cur: %s\n", cur);
+            printf("\tsub rax, %d\n", num);
+            continue;
+        }
+
+        fprintf(stderr, "invalid input\n");
+        return 1;
+    }
+
     printf("\tret\n");
     return 0;
 }

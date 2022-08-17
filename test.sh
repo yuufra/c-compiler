@@ -17,7 +17,7 @@ assert(){
     fi
 }
 
-assert 0 0
-assert 42 42
+assert 3 "1+2"
+assert 1 "1+4-3-1"
 
 echo passed!!
