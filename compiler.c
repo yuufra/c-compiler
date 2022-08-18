@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <ctype.h>
 
 typedef enum {
@@ -19,9 +20,16 @@ struct Token {
 };
 
 Token* token;
+char* user_input;
 
-void error(char* msg){
-    fprintf(stderr, "%s", msg);
+void error_at(char* loc, char* fmt, ...){
+    va_list ap;
+    va_start(ap, fmt);
+
+    int pos = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s^\n", pos, " "); // *と第3引数で最小フィールド幅の指定
+    vfprintf(stderr, fmt, ap);
     exit(1);
 }
 
@@ -68,7 +76,7 @@ Token* tokenize(char* p){
             continue;
         }
 
-        error("invalid input\n");
+        error_at(p, "invalid input\n");
     }
 
     cur = new_token(TK_EOF, cur, p);
@@ -78,7 +86,7 @@ Token* tokenize(char* p){
 int expect_number(){
     // fprintf(stderr, "type %d found\n", token->kind);
     if (token->kind != TK_NUM){
-        error("expected number, but got another kind of value\n");
+        error_at(token->str, "expected number, but got unexpexted value\n");
     }
     int n = token->val;
     token = token->next;
@@ -99,7 +107,7 @@ int consume(char c){
 
 void expect(char c){
     if (token->kind != TK_RESERVED || token->str[0] != c){
-        error("got unexpexted value\n");
+        error_at(token->str, "expected '%c', but got unexpexted value\n", c);
     }
     token = token->next;
 }
@@ -110,7 +118,8 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    token = tokenize(argv[1]);
+    user_input = argv[1];
+    token = tokenize(user_input);
     // fprintf(stderr, "token::");
     // print_list(token);
 
