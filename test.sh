@@ -22,5 +22,7 @@ assert 1 "1+   4- 3 -  1"
 assert 14 "1*2+3*4"
 assert 1 "3-4/2"
 assert 13 "(1+2)*3+4"
+assert 12 "+3*4"
+assert 2 "-1*-2"
 
 echo passed!!

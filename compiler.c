@@ -6,8 +6,10 @@
 
 // EBNFによる文法
 // expr    = mul ("+" mul | "-" mul)*
-// mul     = primary ("*" primary | "/" primary)*
+// mul     = unary ("*" unary | "/" unary)*
+// unary   = ("+" | "-")? primary
 // primary = num | "(" expr ")"
+// (優先順位が高い演算子ほど先に計算したいので下に来る)
 
 // トークンによる中間表現をノード(木構造)による中間表現に変換
 
@@ -48,6 +50,7 @@ struct Node {
 // 関数の宣言
 Node* parse_expr();
 Node* parse_mul();
+Node* parse_unary();
 Node* parse_primary();
 
 int expect_number();
@@ -173,20 +176,35 @@ Node* parse_expr(){
 
 Node* parse_mul(){
     // fprintf(stderr, "parse_mul called\n");
-    Node* node = parse_primary();
+    Node* node = parse_unary();
 
     for(;;){
         if(consume('*')){
-            node = new_node(ND_MUL, node, parse_primary());
+            node = new_node(ND_MUL, node, parse_unary());
             // print_tree(node, 0);
             continue;
         } else if(consume('/')){
-            node = new_node(ND_DIV, node, parse_primary());
+            node = new_node(ND_DIV, node, parse_unary());
             // print_tree(node, 0);
             continue;
         }
         return node;
     }
+}
+
+Node* parse_unary(){
+    Node* node;
+    if(consume('+')){
+        node = parse_primary();
+        // print_tree(node, 0);
+    } else if(consume('-')){
+        node = new_node_num(0);
+        node = new_node(ND_SUB, node, parse_primary());
+        // print_tree(node, 0);
+    } else {
+        node = parse_primary();
+    }
+    return node;
 }
 
 Node* parse_primary(){
