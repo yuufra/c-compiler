@@ -17,17 +17,10 @@ assert(){
     fi
 }
 
-assert 3 "1 + 2"
-assert 1 "1+   4- 3 -  1"
-assert 14 "1*2+3*4"
-assert 1 "3-4/2"
-assert 13 "(1+2)*3+4"
-assert 12 "+3*4"
-assert 2 "-1*-2"
-assert 0 "1!=1"
-assert 0 "3==1"
-assert 0 "3<1"
-assert 1 "3 >=1"
-assert 0 "(1==3)+4*2<5"
+assert 10 "10;"
+assert 13 "(1+2)*3+4;"
+assert 0 "(1==3)+4*2<5;"
+assert 5 "a=1;c=2;a+2*c;"
+assert 14 "a = 3; b = 5 * 6 - 8; a + b / 2;"
 
 echo passed!!

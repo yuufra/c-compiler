@@ -11,7 +11,7 @@ int main(int argc, char** argv){
 
     user_input = argv[1];
     token = tokenize(user_input);
-    Node* node = parse_expr();
+    parse_program();
     // fprintf(stderr, "token::");
     // print_tree(node, 0);
 
@@ -19,9 +19,17 @@ int main(int argc, char** argv){
     printf(".globl main\n");
     printf("main:\n");
 
-    gen(node);
+    printf("\tpush rbp\n");
+    printf("\tmov rbp, rsp\n");
+    printf("\tsub rsp, %d\n", 8*26);
 
-    printf("\tpop rax\n");
-    printf("\tret\n");
+    for (int i=0; code[i] != NULL; i++){
+        gen(code[i]);
+        printf("\tpop rax\n");
+    }
+
+    printf("\tmov rsp, rbp\n");
+    printf("\tpop rbp\n");
+    printf("\tret\n"); // スタックをポップして関数の呼び出し元に戻る
     return 0;
 }

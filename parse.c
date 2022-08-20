@@ -1,19 +1,26 @@
 #include "compiler.h"
 
 // EBNFによる文法
-// expr       = equality
+// program    = stmt*
+// stmt       = expr ";"
+// expr       = assign
+// assign     = equality ( "=" assign )?
 // equality   = relational ("==" relational || "!=" relational)*
 // relational = add ("<" add || "<=" add || ">" add || ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
-// primary    = num | "(" expr ")"
+// primary    = num | ident | "(" expr ")"
 // (優先順位が高い演算子ほど先に計算したいので下に来る)
+// ("="は右結合であることに注意)
 
 // トークンによる中間表現をノード(木構造)による中間表現に変換
 
 // 関数の宣言
-// Node* parse_expr();
+void parse_program();
+Node* parse_stmt();
+Node* parse_expr();
+Node* parse_assign();
 Node* parse_equality();
 Node* parse_relational();
 Node* parse_add();
@@ -21,7 +28,9 @@ Node* parse_mul();
 Node* parse_unary();
 Node* parse_primary();
 
+Token* consume_ident();
 int expect_number();
+int at_eof();
 int consume(char*);
 void expect(char*);
 
@@ -37,13 +46,27 @@ void error_at(char* loc, char* fmt, ...){
     exit(1);
 }
 
+void error(char* fmt, ...){
+    va_list ap;
+    va_start(ap, fmt);
+
+    fprintf(stderr, "%s\n", user_input);
+    vfprintf(stderr, fmt, ap);
+    exit(1);
+}
+
 
 // トークンと連結リストの関数
 void print_list(Token* token){
-    do {
-        fprintf(stderr, "kind:%d, val:%d, str:%s\n", token->kind, token->val, token->str);
+    while (token != NULL) {
+        fprintf(stderr, "- type:%d", token->kind);
+        if (token->kind == TK_NUM){
+            fprintf(stderr, ", val:%d\n", token->val);
+        } else if (token->kind == TK_RESERVED || token->kind == TK_IDENT){
+            fprintf(stderr, ", str:%s\n", token->str);
+        }
         token = token->next;
-    } while (token != NULL);
+    }
     fprintf(stderr,"\n\n");
 }
 
@@ -54,19 +77,20 @@ Token* new_token(TokenKind kind, Token* cur, char* p, int len){
 
     cur->kind = kind;
     cur->str = (char*)calloc(len, sizeof(char));
-    strcpy(cur->str, p);
+    strncpy(cur->str, p, len);
     cur->len = len;
     return cur;
 }
 
 Token* tokenize(char* p){
-    Token head;
-    Token* cur = &head;
+    Token* head = (Token*)calloc(1, sizeof(Token));
+    Token* cur = head;
 
     int num;
     
     while(*p){
-        // print_list(&head);
+        // fprintf(stderr, "*p:%c\n", *p);
+        // print_list(head->next);
         if (isspace(*p)){
             p++;
             continue;
@@ -76,16 +100,20 @@ Token* tokenize(char* p){
             p++;
             p++;
             continue;
-        } else if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')' || *p == '<'  || *p == '>' ){
+        } else if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')' || *p == '<'  || *p == '>'  || *p == '=' || *p == ';'){
             cur = new_token(TK_RESERVED, cur, p, 1);
             // fprintf(stderr, "p: %s\n", p);
             p++;
             continue;
         } else if (isdigit(*p)){
-            cur = new_token(TK_NUM, cur, p, 0);
+            cur = new_token(TK_NUM, cur, p, 1);
             // fprintf(stderr, "p: %s\n", p);
             num = strtol(p, &p, 10);
             cur->val = num;
+            continue;
+        } else if ('a' <= *p && *p <= 'z'){
+            cur = new_token(TK_IDENT, cur, p, 1);
+            p++;
             continue;
         }
 
@@ -93,7 +121,7 @@ Token* tokenize(char* p){
     }
 
     cur = new_token(TK_EOF, cur, p, 0);
-    return head.next;
+    return head->next;
 }
 
 
@@ -102,6 +130,8 @@ void print_tree(Node* node, int depth){
     fprintf(stderr, "- type:%d", node->kind);
     if (node->kind == ND_NUM){
         fprintf(stderr, ",val:%d\n", node->val);
+    } else if (node->kind == ND_LVAL){
+        fprintf(stderr, ",offset:%d\n", node->offset);
     } else {
         fprintf(stderr, "\n");
         fprintf(stderr, "%*s", 2*depth, " ");
@@ -128,10 +158,46 @@ Node* new_node_num(int val){
     return node;
 }
 
+Node* new_node_ident(Token* tok){
+    // fprintf(stderr, "number registered(value:%d)\n", val);
+    Node* node = (Node*)calloc(1, sizeof(Node));
+    node->kind = ND_LVAL;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+}
+
 
 // パース関数
+Node* code[100];
+
+void parse_program(){
+    int i=0;
+
+    while(!at_eof()){
+        code[i] = parse_stmt();
+        // print_tree(code[i], 0);
+        i++;
+    }
+    code[i] = NULL;
+}
+
+Node* parse_stmt(){
+    Node* node = parse_expr();
+    expect(";");
+    return node;
+}
+
 Node* parse_expr(){
-    return parse_equality();    
+    return parse_assign();    
+}
+
+Node* parse_assign(){
+    Node* node = parse_equality();
+
+    if (consume("=")){
+        node = new_node(ND_ASSIGN, node, parse_assign());
+    }
+    return node;
 }
 
 Node* parse_equality(){
@@ -216,6 +282,7 @@ Node* parse_mul(){
 }
 
 Node* parse_unary(){
+    // fprintf(stderr, "parse_unary called\n");
     Node* node;
     if(consume("+")){
         node = parse_primary();
@@ -233,9 +300,13 @@ Node* parse_unary(){
 Node* parse_primary(){
     // fprintf(stderr, "parse_primary called\n");
     Node* node;
+    Token* tok = consume_ident();
+
     if(consume("(")){
         node = parse_expr();
         expect(")");
+    } else if(tok){
+        node = new_node_ident(tok);
     } else {
         int num = expect_number();
         node = new_node_num(num);
@@ -246,6 +317,15 @@ Node* parse_primary(){
 
 
 // 読み込む関数
+Token* consume_ident(){
+    if (token->kind != TK_IDENT){
+        return NULL;
+    }
+    Token* ret = token;
+    token = token->next;
+    return ret;
+}
+
 int expect_number(){
     // fprintf(stderr, "type %d found\n", token->kind);
     if (token->kind != TK_NUM){
@@ -256,9 +336,9 @@ int expect_number(){
     return n;
 }
 
-// int at_eof(){
-//     return token->kind == TK_EOF;
-// }
+int at_eof(){
+    return token->kind == TK_EOF;
+}
 
 int consume(char* c){
     if (token->kind != TK_RESERVED || strlen(c) != token->len || strncmp(token->str, c, token->len)!=0){

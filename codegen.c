@@ -1,8 +1,32 @@
 #include "compiler.h"
 
+void gen_lval(Node* node){
+    if (node->kind != ND_LVAL){
+        error("not a lvalue\n");
+    }
+    printf("\tmov rax, rbp\n");
+    printf("\tsub rax, %d\n", node->offset);
+    printf("\tpush rax\n");
+    return;
+}
+
 void gen(Node* node){
     if (node->kind == ND_NUM){
         printf("\tpush %d\n", node->val);
+        return;
+    } else if (node->kind == ND_ASSIGN){
+        gen_lval(node->lhs);
+        gen(node->rhs);
+        printf("\tpop rdi\n");
+        printf("\tpop rax\n");
+        printf("\tmov [rax], rdi\n");
+        printf("\tpush rdi\n");
+        return;
+    } else if (node->kind == ND_LVAL){
+        gen_lval(node);
+        printf("\tpop rax\n");
+        printf("\tmov rax, [rax]\n");
+        printf("\tpush rax\n");
         return;
     }
     gen(node->lhs);
