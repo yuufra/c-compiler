@@ -11,6 +11,7 @@ void gen_lval(Node* node){
 }
 
 void gen(Node* node){
+    // fprintf(stderr, "gen called(kind:%d)\n", node->kind);
     if (node->kind == ND_NUM){
         printf("\tpush %d\n", node->val);
         return;
@@ -27,6 +28,13 @@ void gen(Node* node){
         printf("\tpop rax\n");
         printf("\tmov rax, [rax]\n");
         printf("\tpush rax\n");
+        return;
+    } else if (node->kind == ND_RETURN){
+        gen(node->lhs);
+        printf("\tpop rax\n");
+        printf("\tmov rsp, rbp\n");
+        printf("\tpop rbp\n");
+        printf("\tret\n");
         return;
     }
     gen(node->lhs);

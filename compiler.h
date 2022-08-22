@@ -8,6 +8,7 @@
 // トークンの定義
 typedef enum {
     TK_RESERVED, // 予約された記号
+    TK_RETURN,
     TK_NUM,
     TK_IDENT,
     TK_EOF
@@ -34,6 +35,7 @@ typedef enum {
     ND_LT,
     ND_LEQ,
     ND_ASSIGN,
+    ND_RETURN,
     ND_LVAR,
     ND_NUM
 } NodeKind;

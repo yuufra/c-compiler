@@ -2,7 +2,7 @@
 
 // EBNFによる文法
 // program    = stmt*
-// stmt       = expr ";"
+// stmt       = expr ";" | "return" expr ";"
 // expr       = assign
 // assign     = equality ( "=" assign )?
 // equality   = relational ("==" relational || "!=" relational)*
@@ -28,6 +28,7 @@ Node* parse_mul();
 Node* parse_unary();
 Node* parse_primary();
 
+int consume_type(TokenKind kind);
 Token* consume_ident();
 int expect_number();
 int at_eof();
@@ -61,13 +62,19 @@ void print_list(Token* token){
     while (token != NULL) {
         fprintf(stderr, "- type:%d", token->kind);
         if (token->kind == TK_NUM){
-            fprintf(stderr, ", val:%d\n", token->val);
+            fprintf(stderr, ", val:%d", token->val);
         } else if (token->kind == TK_RESERVED || token->kind == TK_IDENT){
-            fprintf(stderr, ", str:%s\n", token->str);
+            fprintf(stderr, ", str:%s", token->str);
         }
+        fprintf(stderr, "\n");
         token = token->next;
     }
     fprintf(stderr,"\n\n");
+}
+
+int is_alnum(char c){
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+           ('0' <= c && c <= '9') || (c == '_');
 }
 
 int get_ident(char* p){
@@ -120,6 +127,10 @@ Token* tokenize(char* p){
             num = strtol(p, &p, 10);
             cur->val = num;
             continue;
+        } else if (strncmp(p, "return", 6)==0 && !is_alnum(*(p+6))){
+            cur = new_token(TK_RETURN, cur, p, 1);
+            p += 6;
+            continue;
         } else if ('a' <= *p && *p <= 'z'){
             int len = get_ident(p);
             cur = new_token(TK_IDENT, cur, p, len);
@@ -142,6 +153,10 @@ void print_tree(Node* node, int depth){
         fprintf(stderr, ",val:%d\n", node->val);
     } else if (node->kind == ND_LVAR){
         fprintf(stderr, ",offset:%d\n", node->offset);
+    } else if (node->kind == ND_RETURN){
+        fprintf(stderr, "\n");
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->lhs, depth+1);
     } else {
         fprintf(stderr, "\n");
         fprintf(stderr, "%*s", 2*depth, " ");
@@ -193,7 +208,7 @@ Node* new_node_ident(Token* tok){
         lvar->len = tok->len;
         lvar->offset = locals->offset + 8;
         node->offset = lvar->offset;
-        
+
         lvar->next = locals; // 逆向きに追加
         locals = lvar;
     }
@@ -218,12 +233,21 @@ void parse_program(){
 }
 
 Node* parse_stmt(){
-    Node* node = parse_expr();
-    expect(";");
+    // fprintf(stderr, "parse_stmt called\n");
+    Node* node;
+
+    if (consume_type(TK_RETURN)){
+        node = new_node(ND_RETURN, parse_expr(), NULL);
+        expect(";");
+    } else {
+        node = parse_expr();
+        expect(";");
+    }
     return node;
 }
 
 Node* parse_expr(){
+    // fprintf(stderr, "parse_expr called\n");
     return parse_assign();    
 }
 
@@ -353,6 +377,14 @@ Node* parse_primary(){
 
 
 // 読み込む関数
+int consume_type(TokenKind kind){
+    if (token->kind != kind){
+        return false;
+    }
+    token = token->next;
+    return true;
+}
+
 Token* consume_ident(){
     if (token->kind != TK_IDENT){
         return NULL;
