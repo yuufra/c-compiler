@@ -21,7 +21,7 @@ int main(int argc, char** argv){
 
     printf("\tpush rbp\n");
     printf("\tmov rbp, rsp\n");
-    printf("\tsub rsp, %d\n", 8*26);
+    printf("\tsub rsp, %d\n", locals->offset);
 
     for (int i=0; code[i] != NULL; i++){
         gen(code[i]);

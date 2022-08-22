@@ -4,3 +4,5 @@ compiler
 tmp*
 a.out
 .vscode/
+.gdb_history
+peda-session-compiler.txt

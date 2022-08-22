@@ -7,7 +7,7 @@ assert(){
     ./compiler "$input" > tmp.s
     cc -o tmp tmp.s
     ./tmp
-    actual="$?"
+    actual="$?" # Unixのプロセス終了コードは0〜255なのでactualの取る値も同じ
 
     if [ "$actual" = "$expected" ]; then
         echo "$input => $actual"
