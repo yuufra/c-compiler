@@ -34,7 +34,7 @@ typedef enum {
     ND_LT,
     ND_LEQ,
     ND_ASSIGN,
-    ND_LVAL,
+    ND_LVAR,
     ND_NUM
 } NodeKind;
 
@@ -48,11 +48,23 @@ struct Node {
     Node* rhs;
 };
 
+// ローカル変数の型
+typedef struct LVar LVar;
+
+struct LVar {
+    char* name;
+    int len;
+    int offset;
+    LVar* next; // 連結リストを作る
+};
+
 // 変数・関数宣言
 extern Token* token;
 extern char* user_input;
 
 extern Node* code[100];
+
+extern LVar* locals;
 
 Token* tokenize(char* p);
 void parse_program();

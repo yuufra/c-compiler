@@ -1,7 +1,7 @@
 #include "compiler.h"
 
 void gen_lval(Node* node){
-    if (node->kind != ND_LVAL){
+    if (node->kind != ND_LVAR){
         error("not a lvalue\n");
     }
     printf("\tmov rax, rbp\n");
@@ -22,7 +22,7 @@ void gen(Node* node){
         printf("\tmov [rax], rdi\n");
         printf("\tpush rdi\n");
         return;
-    } else if (node->kind == ND_LVAL){
+    } else if (node->kind == ND_LVAR){
         gen_lval(node);
         printf("\tpop rax\n");
         printf("\tmov rax, [rax]\n");

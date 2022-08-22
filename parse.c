@@ -70,6 +70,16 @@ void print_list(Token* token){
     fprintf(stderr,"\n\n");
 }
 
+int get_ident(char* p){
+    int len = 0;
+    while('a' <= *p && *p <= 'z'){
+        len++;
+        p++;
+    }
+    // fprintf(stderr,"len:%d\n",len);
+    return len;
+}
+
 Token* new_token(TokenKind kind, Token* cur, char* p, int len){
     // fprintf(stderr, "type %d registered\n", kind);
     cur->next = (Token*)calloc(1, sizeof(Token));
@@ -97,8 +107,7 @@ Token* tokenize(char* p){
         } else if (strncmp(p, "==", 2)==0 || strncmp(p, "!=", 2)==0 ||strncmp(p, "<=", 2)==0 || strncmp(p, ">=", 2)==0){
             cur = new_token(TK_RESERVED, cur, p, 2);
             // fprintf(stderr, "p: %s\n", p);
-            p++;
-            p++;
+            p += 2;
             continue;
         } else if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')' || *p == '<'  || *p == '>'  || *p == '=' || *p == ';'){
             cur = new_token(TK_RESERVED, cur, p, 1);
@@ -112,8 +121,9 @@ Token* tokenize(char* p){
             cur->val = num;
             continue;
         } else if ('a' <= *p && *p <= 'z'){
-            cur = new_token(TK_IDENT, cur, p, 1);
-            p++;
+            int len = get_ident(p);
+            cur = new_token(TK_IDENT, cur, p, len);
+            p += len;
             continue;
         }
 
@@ -130,7 +140,7 @@ void print_tree(Node* node, int depth){
     fprintf(stderr, "- type:%d", node->kind);
     if (node->kind == ND_NUM){
         fprintf(stderr, ",val:%d\n", node->val);
-    } else if (node->kind == ND_LVAL){
+    } else if (node->kind == ND_LVAR){
         fprintf(stderr, ",offset:%d\n", node->offset);
     } else {
         fprintf(stderr, "\n");
@@ -139,6 +149,16 @@ void print_tree(Node* node, int depth){
         fprintf(stderr, "%*s", 2*depth, " ");
         print_tree(node->rhs, depth+1);
     }
+}
+
+LVar* locals;
+
+LVar* find_lvar(Token* tok){
+    for (LVar* var = locals; var; var = var->next){
+        if (var->len == tok->len && strncmp(var->name, tok->str, var->len) == 0)
+            return var;
+    }
+    return NULL;
 }
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs){
@@ -161,8 +181,23 @@ Node* new_node_num(int val){
 Node* new_node_ident(Token* tok){
     // fprintf(stderr, "number registered(value:%d)\n", val);
     Node* node = (Node*)calloc(1, sizeof(Node));
-    node->kind = ND_LVAL;
-    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    node->kind = ND_LVAR;
+
+    LVar* lvar = find_lvar(tok);
+    if (lvar){
+        node->offset = lvar->offset;
+    } else {
+        lvar = (LVar*)calloc(1, sizeof(LVar));
+        lvar->name = (char*)calloc(tok->len, sizeof(char));
+        strncpy(lvar->name, tok->str, tok->len);
+        lvar->len = tok->len;
+        lvar->offset = locals->offset + 8;
+        node->offset = lvar->offset;
+        
+        lvar->next = locals; // 逆向きに追加
+        locals = lvar;
+    }
+
     return node;
 }
 
@@ -172,6 +207,7 @@ Node* code[100];
 
 void parse_program(){
     int i=0;
+    locals = (LVar*)calloc(1, sizeof(LVar));
 
     while(!at_eof()){
         code[i] = parse_stmt();
