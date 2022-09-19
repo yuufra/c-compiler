@@ -2,7 +2,10 @@
 
 // EBNFによる文法
 // program    = stmt*
-// stmt       = expr ";" | "return" expr ";"
+// stmt       = expr ";" | "return" expr ";" |
+//              "if" "(" expr ")" stmt ( "else" stmt )? |
+//              "while" "(" expr ")" stmt |
+//              "for" "(" expr? ";" expr? ";" expr ")" stmt
 // expr       = assign
 // assign     = equality ( "=" assign )?
 // equality   = relational ("==" relational || "!=" relational)*
@@ -131,6 +134,22 @@ Token* tokenize(char* p){
             cur = new_token(TK_RETURN, cur, p, 1);
             p += 6;
             continue;
+        } else if (strncmp(p, "if", 2)==0 && !is_alnum(*(p+2))){
+            cur = new_token(TK_IF, cur, p, 1);
+            p += 2;
+            continue;
+        } else if (strncmp(p, "else", 4)==0 && !is_alnum(*(p+4))){
+            cur = new_token(TK_ELSE, cur, p, 1);
+            p += 4;
+            continue;
+        } else if (strncmp(p, "while", 5)==0 && !is_alnum(*(p+5))){
+            cur = new_token(TK_WHILE, cur, p, 1);
+            p += 5;
+            continue;
+        } else if (strncmp(p, "for", 3)==0 && !is_alnum(*(p+3))){
+            cur = new_token(TK_FOR, cur, p, 1);
+            p += 3;
+            continue;
         } else if ('a' <= *p && *p <= 'z'){
             int len = get_ident(p);
             cur = new_token(TK_IDENT, cur, p, len);
@@ -157,6 +176,47 @@ void print_tree(Node* node, int depth){
         fprintf(stderr, "\n");
         fprintf(stderr, "%*s", 2*depth, " ");
         print_tree(node->lhs, depth+1);
+    } else if (node->kind == ND_IF){
+        fprintf(stderr, "\n");
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->lhs->lhs, depth+1);
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->lhs->rhs, depth+1);
+        if (node->rhs){
+            fprintf(stderr, "%*s", 2*depth, " ");
+            print_tree(node->rhs, depth+1);
+        }
+    } else if (node->kind == ND_WHILE){
+        fprintf(stderr, "\n");
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->lhs, depth+1);
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->rhs, depth+1);
+    } else if (node->kind == ND_FOR){
+        fprintf(stderr, "\n");
+        if (node->lhs->lhs->lhs){
+            fprintf(stderr, "%*s", 2*depth, " ");
+            print_tree(node->lhs->lhs->lhs, depth+1);
+        } else {
+            fprintf(stderr, "%*s", 2*depth, " ");
+            fprintf(stderr, "[no init]\n");
+        }
+        if (node->lhs->lhs->rhs){
+            fprintf(stderr, "%*s", 2*depth, " ");
+            print_tree(node->lhs->lhs->rhs, depth+1);
+        } else {
+            fprintf(stderr, "%*s", 2*depth, " ");
+            fprintf(stderr, "[no cond]\n");
+        }
+        if (node->lhs->rhs){
+            fprintf(stderr, "%*s", 2*depth, " ");
+            print_tree(node->lhs->rhs, depth+1);
+        } else {
+            fprintf(stderr, "%*s", 2*depth, " ");
+            fprintf(stderr, "[no final]\n");
+        }
+        fprintf(stderr, "%*s", 2*depth, " ");
+        print_tree(node->rhs, depth+1);
     } else {
         fprintf(stderr, "\n");
         fprintf(stderr, "%*s", 2*depth, " ");
@@ -239,6 +299,42 @@ Node* parse_stmt(){
     if (consume_type(TK_RETURN)){
         node = new_node(ND_RETURN, parse_expr(), NULL);
         expect(";");
+    } else if (consume_type(TK_IF)){
+        expect("(");
+        node = parse_expr();
+        expect(")");
+        node = new_node(ND_IF, node, parse_stmt());
+        if (consume_type(TK_ELSE)){
+            node = new_node(ND_IF, node, parse_stmt());
+        } else {
+            node = new_node(ND_IF, node, NULL);
+        }
+    } else if (consume_type(TK_WHILE)){
+        expect("(");
+        node = parse_expr();
+        expect(")");
+        node = new_node(ND_WHILE, node, parse_stmt());
+    } else if (consume_type(TK_FOR)){
+        expect("(");
+        if (consume(";")){
+            node = NULL;
+        } else {
+            node = parse_expr();
+            expect(";");
+        }
+        if (consume(";")){
+            node = new_node(ND_FOR, node, NULL);
+        } else {
+            node = new_node(ND_FOR, node, parse_expr());
+            expect(";");
+        }
+        if (consume(")")){
+            node = new_node(ND_FOR, node, NULL);
+        } else {
+            node = new_node(ND_FOR, node, parse_expr());
+            expect(")");
+        }
+        node = new_node(ND_FOR, node, parse_stmt());
     } else {
         node = parse_expr();
         expect(";");

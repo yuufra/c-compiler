@@ -9,6 +9,10 @@
 typedef enum {
     TK_RESERVED, // 予約された記号
     TK_RETURN,
+    TK_IF,
+    TK_ELSE,
+    TK_WHILE,
+    TK_FOR,
     TK_NUM,
     TK_IDENT,
     TK_EOF
@@ -36,6 +40,9 @@ typedef enum {
     ND_LEQ,
     ND_ASSIGN,
     ND_RETURN,
+    ND_IF,
+    ND_WHILE,
+    ND_FOR,
     ND_LVAR,
     ND_NUM
 } NodeKind;

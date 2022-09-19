@@ -1,5 +1,7 @@
 #include "compiler.h"
 
+int label_num = 0;
+
 void gen_lval(Node* node){
     if (node->kind != ND_LVAR){
         error("not a lvalue\n");
@@ -36,7 +38,58 @@ void gen(Node* node){
         printf("\tpop rbp\n");
         printf("\tret\n");
         return;
-    }
+    } else if (node->kind == ND_IF){
+        int label = label_num;
+        label_num++;
+
+        gen(node->lhs->lhs);
+
+        if (!node->rhs){ // elseがない場合
+            printf("\tpop rax\n");
+            printf("\tcmp rax, 0\n");
+            printf("\tje .Lend%d\n", label);
+            gen(node->lhs->rhs);
+            printf(".Lend%d:\n", label);
+        } else {
+            printf("\tpop rax\n");
+            printf("\tcmp rax, 0\n");
+            printf("\tje .Lelse%d\n", label);
+            gen(node->lhs->rhs);
+            printf("\tjmp .Lend%d\n", label);
+            printf(".Lelse%d:\n", label);
+            gen(node->rhs);
+            printf(".Lend%d:\n", label);
+        }
+        return;
+    } else if (node->kind == ND_WHILE){
+        int label = label_num;
+        label_num++;
+
+        printf(".Lbegin%d:\n", label);
+        gen(node->lhs);
+        printf("\tpop rax\n");
+        printf("\tcmp rax, 0\n");
+        printf("\tje .Lend%d\n", label);
+        gen(node->rhs);
+        printf("\tjmp .Lbegin%d\n", label);
+        printf(".Lend%d:\n", label);
+        return;
+    } else if (node->kind == ND_FOR){
+        int label = label_num;
+        label_num++;
+
+        gen(node->lhs->lhs->lhs);
+        printf(".Lbegin%d:\n", label);
+        gen(node->lhs->lhs->rhs);
+        printf("\tpop rax\n");
+        printf("\tcmp rax, 0\n");
+        printf("\tje .Lend%d\n", label);
+        gen(node->rhs);
+        gen(node->lhs->rhs);
+        printf("\tjmp .Lbegin%d\n", label);
+        printf(".Lend%d:\n", label);
+        return;
+    } 
     gen(node->lhs);
     gen(node->rhs);
 
