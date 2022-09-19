@@ -2,7 +2,7 @@
 
 // EBNFによる文法
 // program    = stmt*
-// stmt       = expr ";" | "return" expr ";" |
+// stmt       = expr ";" | "{" stmt* "}" | "return" expr ";" |
 //              "if" "(" expr ")" stmt ( "else" stmt )? |
 //              "while" "(" expr ")" stmt |
 //              "for" "(" expr? ";" expr? ";" expr ")" stmt
@@ -119,7 +119,8 @@ Token* tokenize(char* p){
             // fprintf(stderr, "p: %s\n", p);
             p += 2;
             continue;
-        } else if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')' || *p == '<'  || *p == '>'  || *p == '=' || *p == ';'){
+        } else if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')' || *p == '<'  || *p == '>'  ||
+                   *p == '=' || *p == ';' || *p == '{' || *p == '}'){
             cur = new_token(TK_RESERVED, cur, p, 1);
             // fprintf(stderr, "p: %s\n", p);
             p++;
@@ -217,6 +218,13 @@ void print_tree(Node* node, int depth){
         }
         fprintf(stderr, "%*s", 2*depth, " ");
         print_tree(node->rhs, depth+1);
+    } else if (node->kind == ND_BLOCK) {
+        fprintf(stderr, "\n");
+        while (node && node->lhs){
+            fprintf(stderr, "%*s", 2*depth, " ");
+            print_tree(node->lhs, depth+1);
+            node = node->next;
+        }
     } else {
         fprintf(stderr, "\n");
         fprintf(stderr, "%*s", 2*depth, " ");
@@ -276,6 +284,16 @@ Node* new_node_ident(Token* tok){
     return node;
 }
 
+Node* new_node_block(NodeKind kind, Node* cur, Node* child){
+    // fprintf(stderr, "type %d registered\n", kind);
+    cur->next = (Node*)calloc(1, sizeof(Node));
+    cur = cur->next;
+
+    cur->kind = kind;
+    cur->lhs = child;
+    return cur;
+}
+
 
 // パース関数
 Node* code[100];
@@ -296,7 +314,18 @@ Node* parse_stmt(){
     // fprintf(stderr, "parse_stmt called\n");
     Node* node;
 
-    if (consume_type(TK_RETURN)){
+    if (consume("{")){
+        Node* head = (Node*)calloc(1, sizeof(Node));
+        Node* cur = head;
+        while(!consume("}")){
+            cur = new_node_block(ND_BLOCK, cur, parse_stmt());
+        }
+        if (head != cur){
+            node = head->next;
+        } else {
+            node = new_node(ND_BLOCK, NULL, NULL);
+        }
+    } else if (consume_type(TK_RETURN)){
         node = new_node(ND_RETURN, parse_expr(), NULL);
         expect(";");
     } else if (consume_type(TK_IF)){

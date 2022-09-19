@@ -89,7 +89,15 @@ void gen(Node* node){
         printf("\tjmp .Lbegin%d\n", label);
         printf(".Lend%d:\n", label);
         return;
-    } 
+    } else if (node->kind == ND_BLOCK){
+        while (node && node->lhs){
+            gen(node->lhs);
+            if (node->next) // 複文の最後の行では要らない
+                printf("\tpop rax\n");
+            node = node->next;
+        }
+        return;
+    }
     gen(node->lhs);
     gen(node->rhs);
 

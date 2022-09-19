@@ -43,6 +43,7 @@ typedef enum {
     ND_IF,
     ND_WHILE,
     ND_FOR,
+    ND_BLOCK,
     ND_LVAR,
     ND_NUM
 } NodeKind;
@@ -55,6 +56,7 @@ struct Node {
     int offset; // 変数のベースポインタからのオフセット
     Node* lhs; // 木構造を作る
     Node* rhs;
+    Node* next; // 連結リスト用
 };
 
 // ローカル変数の型

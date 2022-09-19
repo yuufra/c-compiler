@@ -29,5 +29,9 @@ assert 2 "while (1) return 2;"
 assert 3 "foo = 10; while (foo!=3) foo = foo - 1; return foo;"
 assert 10 "for(i=1; i<10; i=i+1) return 10;"
 assert 10 "foo=1; for(i=1; i<10; i=i+1) foo=foo+1; return foo;"
+assert 2 "{1;2;}"
+assert 1 "if(1){10;20;} return 1;"
+assert 1 "if(1){} return 1;"
+assert 3 "foo=10; cnt=0; while(foo>3){foo=foo-3; cnt=cnt+1;} return cnt;"
 
 echo passed!!
